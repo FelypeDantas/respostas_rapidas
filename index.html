@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <meta name="description" content="Central de respostas rápidas para atendimento e comunicação.">
+
+  <title>Respostas Rápidas</title>
+
+  <link rel="stylesheet" href="style/style.css">
+</head>
+
+<body>
+
+  <div class="app">
+
+    <!-- ==========================================
+         SIDEBAR
+    =========================================== -->
+    <aside class="sidebar">
+
+      <div class="brand">
+
+        <div class="brand-icon" aria-hidden="true">
+          ⚡
+        </div>
+
+        <div class="brand-content">
+          <strong>Respostas Rápidas</strong>
+          <small>Central de textos</small>
+        </div>
+
+      </div>
+
+      <div class="sidebar-section">
+
+        <span class="nav-title">
+          Categorias
+        </span>
+
+        <nav class="categories" id="categories" aria-label="Categorias"></nav>
+
+      </div>
+
+    </aside>
+
+
+    <!-- ==========================================
+         CONTEÚDO PRINCIPAL
+    =========================================== -->
+    <main class="main">
+
+      <header class="topbar">
+
+        <div class="page-heading">
+
+          <h1 id="pageTitle">
+            Todas as respostas
+          </h1>
+
+          <p class="subtitle" id="pageSubtitle">
+            Clique em copiar e cole onde precisar.
+          </p>
+
+        </div>
+
+        <div class="actions">
+
+          <button type="button" class="btn" id="exportBtn">
+            <span aria-hidden="true">↗</span>
+            Exportar
+          </button>
+
+          <button type="button" class="btn btn-primary" id="newBtn">
+            <span aria-hidden="true">＋</span>
+            Nova resposta
+          </button>
+
+        </div>
+
+      </header>
+
+
+      <!-- ==========================================
+           FERRAMENTAS
+      =========================================== -->
+      <section class="toolbar" aria-label="Ferramentas de pesquisa">
+
+        <div class="search">
+
+          <span class="search-icon" aria-hidden="true">
+            ⌕
+          </span>
+
+          <input id="search" type="search" autocomplete="off"
+            placeholder="Pesquisar por situação, categoria ou texto..." aria-label="Pesquisar respostas">
+
+        </div>
+
+        <select id="sort" aria-label="Ordenar respostas">
+          <option value="recent">
+            Mais recentes
+          </option>
+
+          <option value="name">
+            Nome A-Z
+          </option>
+
+          <option value="favorite">
+            Favoritos primeiro
+          </option>
+        </select>
+
+      </section>
+
+
+      <!-- ==========================================
+           CARDS
+      =========================================== -->
+      <section class="grid" id="cards" aria-live="polite"></section>
+
+    </main>
+
+  </div>
+
+
+  <!-- ============================================
+       MODAL DE CRIAÇÃO / EDIÇÃO
+  ============================================= -->
+  <dialog id="responseModal" class="dialog">
+
+    <form id="responseForm" class="modal">
+
+      <div class="modal-header">
+
+        <div>
+          <span class="modal-eyebrow">
+            Gerenciar resposta
+          </span>
+
+          <h2 id="modalTitle">
+            Nova resposta
+          </h2>
+        </div>
+
+        <button type="button" class="icon-button" data-close="responseModal" aria-label="Fechar">
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="form-grid">
+
+        <div class="field">
+
+          <label for="title">
+            Nome da situação
+          </label>
+
+          <input id="title" name="title" required maxlength="100" placeholder="Ex.: Solicitação recebida">
+
+        </div>
+
+
+        <div class="field">
+
+          <label for="category">
+            Categoria
+          </label>
+
+          <input id="category" name="category" list="categoryOptions" required maxlength="50"
+            placeholder="Ex.: Atendimento">
+
+          <datalist id="categoryOptions"></datalist>
+
+        </div>
+
+
+        <div class="field full">
+
+          <div class="field-heading">
+
+            <label for="text">
+              Texto padrão
+            </label>
+
+            <span id="characterCount">
+              0 caracteres
+            </span>
+
+          </div>
+
+          <textarea id="text" name="text" required maxlength="5000"
+            placeholder="Digite o texto que será copiado..."></textarea>
+
+          <div class="help">
+
+            Use variáveis entre chaves:
+
+            <code>{nome}</code>,
+            <code>{data}</code>,
+            <code>{protocolo}</code>,
+            <code>{motivo}</code>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="modal-actions">
+
+        <button type="button" class="btn" data-close="responseModal">
+          Cancelar
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+          Salvar resposta
+        </button>
+
+      </div>
+
+    </form>
+
+  </dialog>
+
+
+  <!-- ============================================
+       MODAL DE VARIÁVEIS
+  ============================================= -->
+  <dialog id="variablesModal" class="dialog">
+
+    <form id="variablesForm" class="modal">
+
+      <div class="modal-header">
+
+        <div>
+
+          <span class="modal-eyebrow">
+            Personalizar texto
+          </span>
+
+          <h2>
+            Preencha as informações
+          </h2>
+
+        </div>
+
+        <button type="button" class="icon-button" data-close="variablesModal" aria-label="Fechar">
+          ×
+        </button>
+
+      </div>
+
+
+      <div id="variablesFields" class="variables-fields"></div>
+
+
+      <div class="modal-actions">
+
+        <button type="button" class="btn" data-close="variablesModal">
+          Cancelar
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+          📋 Copiar texto
+        </button>
+
+      </div>
+
+    </form>
+
+  </dialog>
+
+
+  <!-- ============================================
+       TOAST
+  ============================================= -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="./js/app.js"></script>
+</body>
+
+</html>
