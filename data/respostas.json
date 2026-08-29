@@ -25,6 +25,15 @@
       "favorite": true,
       "createdAt": "2026-08-27T20:00:00.000Z",
       "updatedAt": "2026-08-27T20:00:00.000Z"
+    },
+    {
+      "id": "aprovacao-rd",
+      "title": "Aprovação de RD",
+      "category": "atualizacao-contratacao",
+      "text": "Informamos que o empreendimento {nome_empreendimento} foi aprovado em reunião na data {data}",
+      "favorite": true,
+      "createdAt": "2026-08-27T20:00:00.000Z",
+      "updatedAt": "2026-08-27T20:00:00.000Z"
     }
   ]
 }
