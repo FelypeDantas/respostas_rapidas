@@ -14,6 +14,11 @@
       "id": "atualizacao-contratacao",
       "name": "Atualização em Contratação",
       "icon": "📋"
+    },
+    {
+      "id": "reserva-de-verba",
+      "name": "Reserva de verba",
+      "icon": "❗"
     }
   ],
   "responses": [
@@ -34,6 +39,14 @@
       "favorite": true,
       "createdAt": "2026-08-27T20:00:00.000Z",
       "updatedAt": "2026-08-27T20:00:00.000Z"
-    }
+    },
+    {
+      "id": "justificativa-reserva-de-verba",
+      "title": "Justificativa de reserva de verba",
+      "category": "reserva-de-verba",
+      "text": "Fica firmado por esta Diretoria de Engenharia e Obras, o compromisso de que os recursos necessários para a cobertura dos gastos desta Requisição estão contemplados no cronograma de desembolsos para o cumprimento das metas financeiras em função da Dotação Orçamentária disponível e do limite de gastos estabelecido para Investimentos em Obras e Serviços de Engenharia, conforme Cronograma de Desembolso desta requisição.",
+      "favorite": true,
+      "createdAt": "2026-09-23T20:00:00.000Z",
+      "updatedAt": "2026-09-23T20:00:00.000Z"
   ]
 }
