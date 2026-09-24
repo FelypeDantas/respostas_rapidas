@@ -58,7 +58,7 @@
       "id": "termo-de-encerramento-processo-duplicado",
       "title": "Termo de encerramento para processo duplicado",
       "category": "atualizacao-sei",
-      "text": "Considerando a conclusão das providências relacionadas ao Processo Administrativo n.º {processo_encerrado}, cujo objeto consistia na contratação de empresa para a execução de obras e serviços de engenharia destinados à implantação do empreendimento habitacional denominado {nome_empreendimento}, composto por {quant_uh} unidades habitacionais e demais serviços correlatos, no Município de {nome_empreendimento}/SP, promovo o encerramento do presente processo e lavro o presente termo para fins de registro. Registra-se que o empreendimento teve seu prosseguimento por meio do Processo Administrativo n.º {sei_segue}, vinculado ao Edital n.º {n_edital}."
+      "text": "Considerando a conclusão das providências relacionadas ao Processo Administrativo n.º {processo_encerrado}, cujo objeto consistia na contratação de empresa para a execução de obras e serviços de engenharia destinados à implantação do empreendimento habitacional denominado {nome_empreendimento}, composto por {quant_uh} unidades habitacionais e demais serviços correlatos, no Município de {nome_empreendimento}/SP, promovo o encerramento do presente processo e lavro o presente termo para fins de registro. Registra-se que o empreendimento teve seu prosseguimento por meio do Processo Administrativo n.º {sei_segue}, vinculado ao Edital n.º {n_edital}.",
       "favorite": true,
       "createdAt": "2026-09-24T20:00:00.000Z",
       "updatedAt": "2026-09-24T20:00:00.000Z"
