@@ -62,6 +62,15 @@
       "favorite": true,
       "createdAt": "2026-09-24T20:00:00.000Z",
       "updatedAt": "2026-09-24T20:00:00.000Z"
+    },
+    {
+      "id": "despacho-de-dispensa-de-faro",
+      "title": "Despacho dispensa de FARO",
+      "category": "atualizacao-sei",
+      "text": "Nos termos do Comunicado GP nº 10/2022 do Tribunal de Contas do Estado de São Paulo, que estabelece a obrigatoriedade de cadastro no Sistema FARO para ajustes cujo valor seja igual ou superior a R$ 2.000.000,00 (dois milhões de reais), informamos que o Contrato nº {número do contrato} está dispensado de cadastro no referido sistema, tendo em vista que seu valor global é inferior ao limite mínimo estabelecido para fins de registro. Dessa forma, não há providências a serem adotadas quanto ao cadastramento do ajuste no Sistema FARO.",
+      "favorite": true,
+      "createdAt": "2026-09-24T20:00:00.000Z",
+      "updatedAt": "2026-09-24T20:00:00.000Z"
     }
   ]
 }
