@@ -71,6 +71,15 @@
       "favorite": true,
       "createdAt": "2026-09-24T20:00:00.000Z",
       "updatedAt": "2026-09-24T20:00:00.000Z"
+    },
+    {
+      "id": "atualização_em_ois",
+      "title": "Atualização para EM OIS",
+      "category": "atualizacao-contratacao",
+      "text": "o contrato foi assinado no dia {data de assinatura do contrato}, a OIS foi gerada e foram solicitados os documentos para a empresa no dia {data de solicitação}. OIS entregue ao gerente da GCC Lazáro Borges, para ser encaminhada ao Diretor Sílvio Vasconcellos.",
+      "favorite": true,
+      "createdAt": "2026-09-24T20:00:00.000Z",
+      "updatedAt": "2026-09-24T20:00:00.000Z"
     }
   ]
 }
