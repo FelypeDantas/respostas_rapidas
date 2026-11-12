@@ -80,6 +80,15 @@
       "favorite": true,
       "createdAt": "2026-09-24T20:00:00.000Z",
       "updatedAt": "2026-09-24T20:00:00.000Z"
+    },
+    {
+      "id": "atualizacao_ois_emitida",
+      "title": "Atualização para OIS Emitida",
+      "category": "atualizacao-contratacao",
+      "text": "OIS Emitida no dia {data de emissão}, datada para início no dia {dia para o início",
+      "favorite": true,
+      "createdAt": "2026-09-24T20:00:00.000Z",
+      "updatedAt": "2026-09-24T20:00:00.000Z"
     }
   ]
 }
