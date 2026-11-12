@@ -98,6 +98,15 @@
       "favorite": true,
       "createdAt": "2026-08-27T20:00:00.000Z",
       "updatedAt": "2026-08-27T20:00:00.000Z"
+    },
+    {
+      "id": "atualizacao-orcamentaria",
+      "title": "Atualização orçamentária",
+      "category": "atualizacao-contratacao",
+      "text": "o Empreendimento de nome {nome do empreendimento}, foi encaminhado para atualização orçamentária na data de {data de encaminhamento}, aguardamos atualizações.",
+      "favorite": true,
+      "createdAt": "2026-08-27T20:00:00.000Z",
+      "updatedAt": "2026-08-27T20:00:00.000Z"
     }
   ]
 }
