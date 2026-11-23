@@ -1,16 +1,25 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
   <meta charset="UTF-8">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <meta name="description" content="Central de respostas rápidas para atendimento e comunicação.">
+  <meta
+    name="description"
+    content="Centralize, organize e personalize suas respostas rápidas. Gerencie textos por categorias e copie mensagens com facilidade."
+  >
 
-  <title>Respostas Rápidas</title>
+  <meta name="theme-color" content="#171717">
 
-  <link rel="stylesheet" href="style/style.css">
+  <meta name="application-name" content="Respostas Rápidas">
+
+  <title>Respostas Rápidas | Central de Textos</title>
+
+  <link rel="stylesheet" href="./style/style.css">
+
+  <script src="./js/app.js" defer></script>
 </head>
 
 <body>
@@ -20,7 +29,8 @@
     <!-- ==========================================
          SIDEBAR
     =========================================== -->
-    <aside class="sidebar">
+
+    <aside class="sidebar" aria-label="Painel de navegação">
 
       <div class="brand">
 
@@ -37,11 +47,17 @@
 
       <div class="sidebar-section">
 
-        <span class="nav-title">
+        <span class="nav-title" id="categoriesTitle">
           Categorias
         </span>
 
-        <nav class="categories" id="categories" aria-label="Categorias"></nav>
+        <nav
+          class="categories"
+          id="categories"
+          aria-labelledby="categoriesTitle"
+        >
+          <!-- Categorias geradas pelo JavaScript -->
+        </nav>
 
       </div>
 
@@ -51,7 +67,10 @@
     <!-- ==========================================
          CONTEÚDO PRINCIPAL
     =========================================== -->
-    <main class="main">
+
+    <main class="main" id="mainContent">
+
+      <!-- CABEÇALHO -->
 
       <header class="topbar">
 
@@ -62,19 +81,29 @@
           </h1>
 
           <p class="subtitle" id="pageSubtitle">
-            Clique em copiar e cole onde precisar.
+            Encontre, personalize e copie seus textos rapidamente.
           </p>
 
         </div>
 
         <div class="actions">
 
-          <button type="button" class="btn" id="exportBtn">
+          <button
+            type="button"
+            class="btn"
+            id="exportBtn"
+            aria-label="Exportar respostas"
+          >
             <span aria-hidden="true">↗</span>
             Exportar
           </button>
 
-          <button type="button" class="btn btn-primary" id="newBtn">
+          <button
+            type="button"
+            class="btn btn-primary"
+            id="newBtn"
+            aria-label="Criar nova resposta"
+          >
             <span aria-hidden="true">＋</span>
             Nova resposta
           </button>
@@ -85,9 +114,13 @@
 
 
       <!-- ==========================================
-           FERRAMENTAS
+           FERRAMENTAS DE PESQUISA E ORDENAÇÃO
       =========================================== -->
-      <section class="toolbar" aria-label="Ferramentas de pesquisa">
+
+      <section
+        class="toolbar"
+        aria-label="Pesquisa e organização das respostas"
+      >
 
         <div class="search">
 
@@ -95,12 +128,23 @@
             ⌕
           </span>
 
-          <input id="search" type="search" autocomplete="off"
-            placeholder="Pesquisar por situação, categoria ou texto..." aria-label="Pesquisar respostas">
+          <input
+            id="search"
+            type="search"
+            autocomplete="off"
+            placeholder="Pesquisar por situação, categoria ou texto..."
+            aria-label="Pesquisar respostas"
+            aria-controls="cards"
+          >
 
         </div>
 
-        <select id="sort" aria-label="Ordenar respostas">
+        <select
+          id="sort"
+          aria-label="Ordenar respostas"
+          title="Escolha como organizar as respostas"
+        >
+
           <option value="recent">
             Mais recentes
           </option>
@@ -112,15 +156,25 @@
           <option value="favorite">
             Favoritos primeiro
           </option>
+
         </select>
 
       </section>
 
 
       <!-- ==========================================
-           CARDS
+           LISTAGEM DE RESPOSTAS
       =========================================== -->
-      <section class="grid" id="cards" aria-live="polite"></section>
+
+      <section
+        class="grid"
+        id="cards"
+        aria-label="Respostas disponíveis"
+        aria-live="polite"
+        aria-relevant="additions removals text"
+      >
+        <!-- Cards gerados dinamicamente pelo JavaScript -->
+      </section>
 
     </main>
 
@@ -128,15 +182,23 @@
 
 
   <!-- ============================================
-       MODAL DE CRIAÇÃO / EDIÇÃO
+       MODAL DE CRIAÇÃO E EDIÇÃO
   ============================================= -->
-  <dialog id="responseModal" class="dialog">
+
+  <dialog
+    id="responseModal"
+    class="dialog"
+    aria-labelledby="modalTitle"
+  >
 
     <form id="responseForm" class="modal">
+
+      <!-- CABEÇALHO DO MODAL -->
 
       <div class="modal-header">
 
         <div>
+
           <span class="modal-eyebrow">
             Gerenciar resposta
           </span>
@@ -144,16 +206,26 @@
           <h2 id="modalTitle">
             Nova resposta
           </h2>
+
         </div>
 
-        <button type="button" class="icon-button" data-close="responseModal" aria-label="Fechar">
+        <button
+          type="button"
+          class="icon-button"
+          data-close="responseModal"
+          aria-label="Fechar janela de gerenciamento"
+        >
           ×
         </button>
 
       </div>
 
 
+      <!-- CAMPOS DO FORMULÁRIO -->
+
       <div class="form-grid">
+
+        <!-- NOME -->
 
         <div class="field">
 
@@ -161,10 +233,20 @@
             Nome da situação
           </label>
 
-          <input id="title" name="title" required maxlength="100" placeholder="Ex.: Solicitação recebida">
+          <input
+            id="title"
+            name="title"
+            type="text"
+            required
+            maxlength="100"
+            placeholder="Ex.: Solicitação recebida"
+            autocomplete="off"
+          >
 
         </div>
 
+
+        <!-- CATEGORIA -->
 
         <div class="field">
 
@@ -172,13 +254,25 @@
             Categoria
           </label>
 
-          <input id="category" name="category" list="categoryOptions" required maxlength="50"
-            placeholder="Ex.: Atendimento">
+          <input
+            id="category"
+            name="category"
+            type="text"
+            list="categoryOptions"
+            required
+            maxlength="50"
+            placeholder="Ex.: Atendimento"
+            autocomplete="off"
+          >
 
-          <datalist id="categoryOptions"></datalist>
+          <datalist id="categoryOptions">
+            <!-- Categorias sugeridas pelo JavaScript -->
+          </datalist>
 
         </div>
 
+
+        <!-- TEXTO PADRÃO -->
 
         <div class="field full">
 
@@ -188,18 +282,30 @@
               Texto padrão
             </label>
 
-            <span id="characterCount">
+            <span
+              id="characterCount"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               0 caracteres
             </span>
 
           </div>
 
-          <textarea id="text" name="text" required maxlength="5000"
-            placeholder="Digite o texto que será copiado..."></textarea>
+          <textarea
+            id="text"
+            name="text"
+            required
+            maxlength="5000"
+            rows="8"
+            placeholder="Digite o texto que será copiado..."
+            aria-describedby="textHelp"
+          ></textarea>
 
-          <div class="help">
+          <div class="help" id="textHelp">
 
-            Use variáveis entre chaves:
+            Utilize variáveis entre chaves para personalizar
+            suas mensagens automaticamente:
 
             <code>{nome}</code>,
             <code>{data}</code>,
@@ -213,13 +319,22 @@
       </div>
 
 
+      <!-- AÇÕES -->
+
       <div class="modal-actions">
 
-        <button type="button" class="btn" data-close="responseModal">
+        <button
+          type="button"
+          class="btn"
+          data-close="responseModal"
+        >
           Cancelar
         </button>
 
-        <button type="submit" class="btn btn-primary">
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >
           Salvar resposta
         </button>
 
@@ -231,11 +346,18 @@
 
 
   <!-- ============================================
-       MODAL DE VARIÁVEIS
+       MODAL DE PERSONALIZAÇÃO DE VARIÁVEIS
   ============================================= -->
-  <dialog id="variablesModal" class="dialog">
+
+  <dialog
+    id="variablesModal"
+    class="dialog"
+    aria-labelledby="variablesTitle"
+  >
 
     <form id="variablesForm" class="modal">
+
+      <!-- CABEÇALHO -->
 
       <div class="modal-header">
 
@@ -245,30 +367,52 @@
             Personalizar texto
           </span>
 
-          <h2>
+          <h2 id="variablesTitle">
             Preencha as informações
           </h2>
 
         </div>
 
-        <button type="button" class="icon-button" data-close="variablesModal" aria-label="Fechar">
+        <button
+          type="button"
+          class="icon-button"
+          data-close="variablesModal"
+          aria-label="Fechar personalização"
+        >
           ×
         </button>
 
       </div>
 
 
-      <div id="variablesFields" class="variables-fields"></div>
+      <!-- CAMPOS DINÂMICOS -->
 
+      <div
+        id="variablesFields"
+        class="variables-fields"
+      >
+        <!-- Campos gerados pelo JavaScript -->
+      </div>
+
+
+      <!-- AÇÕES -->
 
       <div class="modal-actions">
 
-        <button type="button" class="btn" data-close="variablesModal">
+        <button
+          type="button"
+          class="btn"
+          data-close="variablesModal"
+        >
           Cancelar
         </button>
 
-        <button type="submit" class="btn btn-primary">
-          📋 Copiar texto
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >
+          <span aria-hidden="true">📋</span>
+          Copiar texto
         </button>
 
       </div>
@@ -279,11 +423,28 @@
 
 
   <!-- ============================================
-       TOAST
+       NOTIFICAÇÕES DO SISTEMA
   ============================================= -->
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="./js/app.js"></script>
+  <div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  ></div>
+
+
+  <!-- ============================================
+       FALLBACK PARA JAVASCRIPT DESATIVADO
+  ============================================= -->
+
+  <noscript>
+    <p>
+      Este aplicativo precisa de JavaScript habilitado
+      para funcionar corretamente.
+    </p>
+  </noscript>
+
 </body>
-
 </html>
