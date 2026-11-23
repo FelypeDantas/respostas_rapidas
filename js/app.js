@@ -1,21 +1,22 @@
 /* ============================================================
    RESPOSTAS RÁPIDAS
-   Sistema baseado em JSON
+   Sistema de gerenciamento de respostas baseado em JSON
    ============================================================ */
 
 "use strict";
-
 
 /* ============================================================
    CONFIGURAÇÃO
    ============================================================ */
 
-const CONFIG = {
+const CONFIG = Object.freeze({
   dataUrl: "./data/respostas.json",
   storageKey: "respostas_rapidas_data_v1",
-  maxTextLength: 5000
-};
-
+  maxTextLength: 5000,
+  toastDuration: 2800,
+  fallbackCategoryIcon: "📁",
+  exportFileName: "respostas-rapidas.json"
+});
 
 /* ============================================================
    ESTADO DA APLICAÇÃO
@@ -23,20 +24,14 @@ const CONFIG = {
 
 const state = {
   data: null,
-
   selectedCategory: "all",
-
   search: "",
-
   sort: "recent",
-
   editingId: null,
-
-  copyingResponse: null,
-
-  toastTimer: null
+  copyingResponseId: null,
+  toastTimer: null,
+  storageAvailable: true
 };
-
 
 /* ============================================================
    ELEMENTOS DO DOM
@@ -44,46 +39,29 @@ const state = {
 
 const elements = {
   categories: document.getElementById("categories"),
-
   cards: document.getElementById("cards"),
-
   search: document.getElementById("search"),
-
   sort: document.getElementById("sort"),
-
   pageTitle: document.getElementById("pageTitle"),
-
   pageSubtitle: document.getElementById("pageSubtitle"),
-
   exportBtn: document.getElementById("exportBtn"),
-
   newBtn: document.getElementById("newBtn"),
 
   responseModal: document.getElementById("responseModal"),
-
   responseForm: document.getElementById("responseForm"),
-
   modalTitle: document.getElementById("modalTitle"),
-
   title: document.getElementById("title"),
-
   category: document.getElementById("category"),
-
   categoryOptions: document.getElementById("categoryOptions"),
-
   text: document.getElementById("text"),
-
   characterCount: document.getElementById("characterCount"),
 
   variablesModal: document.getElementById("variablesModal"),
-
   variablesForm: document.getElementById("variablesForm"),
-
   variablesFields: document.getElementById("variablesFields"),
 
   toast: document.getElementById("toast")
 };
-
 
 /* ============================================================
    INICIALIZAÇÃO
@@ -91,670 +69,439 @@ const elements = {
 
 document.addEventListener("DOMContentLoaded", init);
 
-
 async function init() {
-
   try {
-
+    validateRequiredElements();
     await loadData();
-
     setupEvents();
-
     render();
-
   } catch (error) {
-
-    console.error(
-      "Erro ao carregar respostas:",
-      error
-    );
-
+    console.error("Erro ao inicializar a aplicação:", error);
     showFatalError(error);
-
   }
-
 }
 
+function validateRequiredElements() {
+  const required = [
+    "categories",
+    "cards",
+    "search",
+    "sort",
+    "pageTitle",
+    "pageSubtitle",
+    "exportBtn",
+    "newBtn",
+    "responseModal",
+    "responseForm",
+    "modalTitle",
+    "title",
+    "category",
+    "categoryOptions",
+    "text",
+    "characterCount",
+    "variablesModal",
+    "variablesForm",
+    "variablesFields",
+    "toast"
+  ];
+
+  const missing = required.filter(key => !elements[key]);
+
+  if (missing.length) {
+    throw new Error(
+      `Elementos não encontrados no HTML: ${missing.join(", ")}`
+    );
+  }
+}
 
 /* ============================================================
-   CARREGAMENTO DOS DADOS
+   CARREGAMENTO E VALIDAÇÃO DOS DADOS
    ============================================================ */
 
 async function loadData() {
+  const savedData = readLocalData();
 
-  /*
-   * 1. Primeiro tenta carregar os dados salvos
-   *    localmente.
-   *
-   * 2. Caso não exista nada no localStorage,
-   *    carrega o JSON original.
-   */
-
-  const saved =
-    localStorage.getItem(
-      CONFIG.storageKey
-    );
-
-
-  if (saved) {
-
-    try {
-
-      const parsed =
-        JSON.parse(saved);
-
-      if (validateData(parsed)) {
-
-        state.data =
-          normalizeData(parsed);
-
-        return;
-
-      }
-
-    } catch (error) {
-
-      console.warn(
-        "Dados locais inválidos. O JSON original será carregado.",
-        error
-      );
-
-    }
-
-  }
-
-
-  /*
-   * Carrega o arquivo JSON.
-   */
-
-  const response =
-    await fetch(CONFIG.dataUrl, {
-      cache: "no-store"
-    });
-
-
-  if (!response.ok) {
-
-    throw new Error(
-      `Não foi possível carregar ${CONFIG.dataUrl}`
-    );
-
-  }
-
-
-  const json =
-    await response.json();
-
-
-  if (!validateData(json)) {
-
-    throw new Error(
-      "O arquivo JSON possui uma estrutura inválida."
-    );
-
-  }
-
-
-  state.data =
-    normalizeData(json);
-
-
-  saveData();
-
-}
-
-
-/* ============================================================
-   VALIDAÇÃO DO JSON
-   ============================================================ */
-
-function validateData(data) {
-
-  if (!data || typeof data !== "object") {
-    return false;
-  }
-
-
-  if (!Array.isArray(data.categories)) {
-    return false;
-  }
-
-
-  if (!Array.isArray(data.responses)) {
-    return false;
-  }
-
-
-  return true;
-
-}
-
-
-/* ============================================================
-   NORMALIZAÇÃO
-   ============================================================ */
-
-function normalizeData(data) {
-
-  return {
-
-    version:
-      Number(data.version) || 1,
-
-    settings:
-      data.settings || {
-        appName: "Respostas Rápidas",
-        description: "Central de textos"
-      },
-
-    categories:
-      data.categories
-        .filter(Boolean)
-        .map(category => ({
-          id:
-            String(category.id || slugify(category.name)),
-
-          name:
-            String(category.name || "Sem nome"),
-
-          icon:
-            String(category.icon || "📁")
-        })),
-
-    responses:
-      data.responses
-        .filter(Boolean)
-        .map(response => ({
-          id:
-            String(
-              response.id ||
-              createId()
-            ),
-
-          title:
-            String(response.title || "Sem título"),
-
-          category:
-            String(response.category || ""),
-
-          text:
-            String(response.text || ""),
-
-          favorite:
-            Boolean(response.favorite),
-
-          createdAt:
-            response.createdAt ||
-            new Date().toISOString(),
-
-          updatedAt:
-            response.updatedAt ||
-            response.createdAt ||
-            new Date().toISOString()
-        }))
-
-  };
-
-}
-
-
-/* ============================================================
-   SALVAR DADOS
-   ============================================================ */
-
-function saveData() {
-
-  if (!state.data) {
+  if (savedData) {
+    state.data = normalizeData(savedData);
     return;
   }
 
+  const response = await fetch(CONFIG.dataUrl, {
+    cache: "no-store"
+  });
 
-  localStorage.setItem(
-    CONFIG.storageKey,
-    JSON.stringify(
-      state.data
-    )
-  );
+  if (!response.ok) {
+    throw new Error(
+      `Não foi possível carregar "${CONFIG.dataUrl}". HTTP ${response.status}.`
+    );
+  }
 
+  const json = await response.json();
+
+  if (!validateData(json)) {
+    throw new Error("O arquivo JSON possui uma estrutura inválida.");
+  }
+
+  state.data = normalizeData(json);
+  saveData();
 }
 
+function readLocalData() {
+  try {
+    const saved = localStorage.getItem(CONFIG.storageKey);
+
+    if (!saved) return null;
+
+    const parsed = JSON.parse(saved);
+
+    if (!validateData(parsed)) {
+      console.warn("Os dados locais possuem uma estrutura inválida.");
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.warn("Não foi possível ler os dados locais:", error);
+    state.storageAvailable = false;
+    return null;
+  }
+}
+
+function validateData(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return false;
+  }
+
+  if (!Array.isArray(data.categories) || !Array.isArray(data.responses)) {
+    return false;
+  }
+
+  const validCategories = data.categories.every(category =>
+    category &&
+    typeof category === "object" &&
+    (typeof category.id === "string" || typeof category.name === "string")
+  );
+
+  const validResponses = data.responses.every(response =>
+    response &&
+    typeof response === "object" &&
+    typeof response.title === "string" &&
+    typeof response.text === "string"
+  );
+
+  return validCategories && validResponses;
+}
+
+function normalizeData(data) {
+  const categories = [];
+  const usedCategoryIds = new Set();
+
+  for (const item of data.categories) {
+    if (!item || typeof item !== "object") continue;
+
+    const name = String(item.name || "Sem nome").trim() || "Sem nome";
+    const baseId = String(item.id || slugify(name) || createId());
+    let id = baseId;
+    let suffix = 1;
+
+    while (usedCategoryIds.has(id)) {
+      id = `${baseId}-${suffix++}`;
+    }
+
+    usedCategoryIds.add(id);
+
+    categories.push({
+      id,
+      name,
+      icon: String(item.icon || CONFIG.fallbackCategoryIcon)
+    });
+  }
+
+  const responses = [];
+  const usedResponseIds = new Set();
+
+  for (const item of data.responses) {
+    if (!item || typeof item !== "object") continue;
+
+    const title = String(item.title || "Sem título").trim() || "Sem título";
+    const baseId = String(item.id || createId());
+    let id = baseId;
+    let suffix = 1;
+
+    while (usedResponseIds.has(id)) {
+      id = `${baseId}-${suffix++}`;
+    }
+
+    usedResponseIds.add(id);
+
+    const createdAt = normalizeDate(item.createdAt);
+    const updatedAt = normalizeDate(item.updatedAt || item.createdAt);
+
+    responses.push({
+      id,
+      title,
+      category: String(item.category || ""),
+      text: String(item.text || ""),
+      favorite: Boolean(item.favorite),
+      createdAt,
+      updatedAt
+    });
+  }
+
+  return {
+    version: Number(data.version) || 1,
+    settings: {
+      appName: String(data.settings?.appName || "Respostas Rápidas"),
+      description: String(data.settings?.description || "Central de textos")
+    },
+    categories,
+    responses
+  };
+}
+
+function normalizeDate(value) {
+  const date = value ? new Date(value) : new Date();
+
+  return Number.isNaN(date.getTime())
+    ? new Date().toISOString()
+    : date.toISOString();
+}
 
 /* ============================================================
-   EVENTOS
+   PERSISTÊNCIA
+   ============================================================ */
+
+function saveData() {
+  if (!state.data) return false;
+
+  try {
+    localStorage.setItem(
+      CONFIG.storageKey,
+      JSON.stringify(state.data)
+    );
+
+    state.storageAvailable = true;
+    return true;
+  } catch (error) {
+    state.storageAvailable = false;
+    console.error("Não foi possível salvar os dados:", error);
+
+    showToast(
+      "Não foi possível salvar. Verifique o armazenamento do navegador."
+    );
+
+    return false;
+  }
+}
+
+/* ============================================================
+   EVENTOS GLOBAIS
    ============================================================ */
 
 function setupEvents() {
+  elements.search.addEventListener("input", event => {
+    state.search = normalizeSearch(event.target.value);
+    renderCards();
+  });
 
-  /*
-   * Pesquisa
-   */
+  elements.sort.addEventListener("change", event => {
+    state.sort = event.target.value;
+    renderCards();
+  });
 
-  elements.search.addEventListener(
-    "input",
-    event => {
+  elements.newBtn.addEventListener("click", openCreateModal);
+  elements.exportBtn.addEventListener("click", exportJSON);
 
-      state.search =
-        event.target.value
-          .trim()
-          .toLowerCase();
+  elements.responseForm.addEventListener("submit", handleResponseSubmit);
+  elements.variablesForm.addEventListener("submit", handleVariablesSubmit);
 
-      renderCards();
+  elements.text.addEventListener("input", updateCharacterCount);
 
-    }
-  );
+  // Delegação de eventos: os botões continuam funcionando após renderizações.
+  elements.categories.addEventListener("click", handleCategoryClick);
+  elements.cards.addEventListener("click", handleCardAction);
 
+  document.querySelectorAll("[data-close]").forEach(button => {
+    button.addEventListener("click", () => {
+      const modal = document.getElementById(button.dataset.close);
 
-  /*
-   * Ordenação
-   */
-
-  elements.sort.addEventListener(
-    "change",
-    event => {
-
-      state.sort =
-        event.target.value;
-
-      renderCards();
-
-    }
-  );
-
-
-  /*
-   * Nova resposta
-   */
-
-  elements.newBtn.addEventListener(
-    "click",
-    openCreateModal
-  );
-
-
-  /*
-   * Exportar
-   */
-
-  elements.exportBtn.addEventListener(
-    "click",
-    exportJSON
-  );
-
-
-  /*
-   * Formulário de resposta
-   */
-
-  elements.responseForm.addEventListener(
-    "submit",
-    handleResponseSubmit
-  );
-
-
-  /*
-   * Formulário de variáveis
-   */
-
-  elements.variablesForm.addEventListener(
-    "submit",
-    handleVariablesSubmit
-  );
-
-
-  /*
-   * Contador de caracteres
-   */
-
-  elements.text.addEventListener(
-    "input",
-    updateCharacterCount
-  );
-
-
-  /*
-   * Botões de fechar modal
-   */
-
-  document
-    .querySelectorAll("[data-close]")
-    .forEach(button => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          const modalId =
-            button.dataset.close;
-
-          const modal =
-            document.getElementById(
-              modalId
-            );
-
-          if (modal) {
-            modal.close();
-          }
-
-        }
-      );
-
+      if (modal instanceof HTMLDialogElement && modal.open) {
+        modal.close();
+      }
     });
+  });
 
+  elements.responseModal.addEventListener("click", handleDialogBackdrop);
+  elements.variablesModal.addEventListener("click", handleDialogBackdrop);
 
-  /*
-   * Clique no backdrop dos modais
-   */
-
-  elements.responseModal.addEventListener(
-    "click",
-    handleDialogBackdrop
-  );
-
-
-  elements.variablesModal.addEventListener(
-    "click",
-    handleDialogBackdrop
-  );
-
+  elements.responseModal.addEventListener("close", handleResponseModalClose);
+  elements.variablesModal.addEventListener("close", handleVariablesModalClose);
 }
 
+function handleCategoryClick(event) {
+  const button = event.target.closest("[data-category]");
+
+  if (!button || !elements.categories.contains(button)) return;
+
+  state.selectedCategory = button.dataset.category || "all";
+  render();
+}
+
+function handleCardAction(event) {
+  const button = event.target.closest("[data-action]");
+
+  if (!button || !elements.cards.contains(button)) return;
+
+  const { action, id } = button.dataset;
+
+  if (!id) return;
+
+  switch (action) {
+    case "copy":
+      openCopyModal(id);
+      break;
+    case "edit":
+      openEditModal(id);
+      break;
+    case "delete":
+      deleteResponse(id);
+      break;
+    case "favorite":
+      toggleFavorite(id);
+      break;
+    default:
+      console.warn(`Ação desconhecida: ${action}`);
+  }
+}
 
 /* ============================================================
-   RENDER GERAL
+   RENDERIZAÇÃO
    ============================================================ */
 
 function render() {
-
   renderCategories();
-
   renderHeader();
-
   renderCards();
-
   updateCategoryOptions();
-
 }
 
-
-/* ============================================================
-   CATEGORIAS
-   ============================================================ */
-
 function renderCategories() {
+  const total = state.data.responses.length;
 
-  const categories =
-    state.data.categories;
-
-
-  const total =
-    state.data.responses.length;
-
-
-  let html = `
+  const allButton = `
     <button
       type="button"
-      class="category ${
-        state.selectedCategory === "all"
-          ? "active"
-          : ""
-      }"
+      class="category ${state.selectedCategory === "all" ? "active" : ""}"
       data-category="all"
+      aria-pressed="${state.selectedCategory === "all"}"
     >
-
       <span class="category-name">
         <span aria-hidden="true">📚</span>
         <span>Todas</span>
       </span>
-
-      <span class="count">
-        ${total}
-      </span>
-
+      <span class="count">${total}</span>
     </button>
   `;
 
+  const categoryButtons = state.data.categories.map(category => {
+    const count = state.data.responses.filter(
+      response => response.category === category.id
+    ).length;
 
-  categories.forEach(category => {
+    const active = state.selectedCategory === category.id;
 
-    const count =
-      state.data.responses.filter(
-        response =>
-          response.category ===
-          category.id
-      ).length;
-
-
-    html += `
+    return `
       <button
         type="button"
-        class="category ${
-          state.selectedCategory === category.id
-            ? "active"
-            : ""
-        }"
+        class="category ${active ? "active" : ""}"
         data-category="${escapeAttribute(category.id)}"
+        aria-pressed="${active}"
       >
-
         <span class="category-name">
-
-          <span aria-hidden="true">
-            ${escapeHtml(category.icon)}
-          </span>
-
-          <span>
-            ${escapeHtml(category.name)}
-          </span>
-
+          <span aria-hidden="true">${escapeHtml(category.icon)}</span>
+          <span>${escapeHtml(category.name)}</span>
         </span>
-
-        <span class="count">
-          ${count}
-        </span>
-
+        <span class="count">${count}</span>
       </button>
     `;
+  }).join("");
 
-  });
-
-
-  elements.categories.innerHTML =
-    html;
-
-
-  elements.categories
-    .querySelectorAll("[data-category]")
-    .forEach(button => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          state.selectedCategory =
-            button.dataset.category;
-
-          render();
-
-        }
-      );
-
-    });
-
+  elements.categories.innerHTML = allButton + categoryButtons;
 }
 
-
-/* ============================================================
-   CABEÇALHO
-   ============================================================ */
-
 function renderHeader() {
-
-  if (
-    state.selectedCategory === "all"
-  ) {
-
+  if (state.selectedCategory === "all") {
     elements.pageTitle.textContent =
-      state.data.settings?.appName ||
-      "Todas as respostas";
+      state.data.settings.appName || "Todas as respostas";
 
     elements.pageSubtitle.textContent =
-      state.data.settings?.description ||
+      state.data.settings.description ||
       "Clique em copiar e cole onde precisar.";
 
     return;
-
   }
 
+  const category = getCategory(state.selectedCategory);
 
-  const category =
-    getCategory(
-      state.selectedCategory
-    );
-
-
-  elements.pageTitle.textContent =
-    category?.name ||
-    "Respostas";
-
-
-  elements.pageSubtitle.textContent =
-    category
-      ? `Respostas da categoria ${category.name}.`
-      : "Clique em copiar e cole onde precisar.";
-
+  elements.pageTitle.textContent = category?.name || "Respostas";
+  elements.pageSubtitle.textContent = category
+    ? `Respostas da categoria ${category.name}.`
+    : "Clique em copiar e cole onde precisar.";
 }
 
-
-/* ============================================================
-   CARDS
-   ============================================================ */
-
 function renderCards() {
-
-  const responses =
-    getFilteredResponses();
-
+  const responses = getFilteredResponses();
 
   if (!responses.length) {
-
     elements.cards.innerHTML = `
       <div class="empty">
-
-        <div class="empty-icon">
-          🔎
-        </div>
-
-        <h3>
-          Nenhuma resposta encontrada
-        </h3>
-
-        <p>
-          Tente outro termo ou crie uma nova resposta.
-        </p>
-
+        <div class="empty-icon" aria-hidden="true">🔎</div>
+        <h3>Nenhuma resposta encontrada</h3>
+        <p>Tente outro termo ou crie uma nova resposta.</p>
       </div>
     `;
 
     return;
-
   }
 
-
-  elements.cards.innerHTML =
-    responses
-      .map(renderCard)
-      .join("");
-
-
-  bindCardEvents();
-
+  elements.cards.innerHTML = responses.map(renderCard).join("");
 }
 
-
-/* ============================================================
-   CARD
-   ============================================================ */
-
 function renderCard(response) {
-
-  const category =
-    getCategory(
-      response.category
-    );
-
-
-  const categoryName =
-    category?.name ||
-    "Sem categoria";
-
+  const category = getCategory(response.category);
+  const categoryName = category?.name || "Sem categoria";
+  const favoriteLabel = response.favorite
+    ? "Remover dos favoritos"
+    : "Adicionar aos favoritos";
 
   return `
-    <article
-      class="card"
-      data-id="${escapeAttribute(response.id)}"
-    >
-
+    <article class="card" data-id="${escapeAttribute(response.id)}">
       <div class="card-head">
-
         <div class="card-info">
-
-          <span class="tag">
-            ${escapeHtml(categoryName)}
-          </span>
-
-          <h3>
-            ${escapeHtml(response.title)}
-          </h3>
-
+          <span class="tag">${escapeHtml(categoryName)}</span>
+          <h3>${escapeHtml(response.title)}</h3>
         </div>
-
 
         <button
           type="button"
-          class="favorite ${
-            response.favorite
-              ? "active"
-              : ""
-          }"
+          class="favorite ${response.favorite ? "active" : ""}"
           data-action="favorite"
           data-id="${escapeAttribute(response.id)}"
-          title="${
-            response.favorite
-              ? "Remover dos favoritos"
-              : "Adicionar aos favoritos"
-          }"
-          aria-label="${
-            response.favorite
-              ? "Remover dos favoritos"
-              : "Adicionar aos favoritos"
-          }"
-        >
-          ${
-            response.favorite
-              ? "★"
-              : "☆"
-          }
-        </button>
-
+          title="${favoriteLabel}"
+          aria-label="${favoriteLabel}"
+          aria-pressed="${response.favorite}"
+        >${response.favorite ? "★" : "☆"}</button>
       </div>
 
-
-      <div class="preview">
-        ${escapeHtml(response.text)}
-      </div>
-
+      <div class="preview">${escapeHtml(response.text)}</div>
 
       <div class="card-actions">
-
         <button
           type="button"
           class="copy"
           data-action="copy"
           data-id="${escapeAttribute(response.id)}"
-        >
-          📋 Copiar texto
-        </button>
-
+        >📋 Copiar texto</button>
 
         <button
           type="button"
@@ -763,10 +510,7 @@ function renderCard(response) {
           data-id="${escapeAttribute(response.id)}"
           title="Editar"
           aria-label="Editar resposta"
-        >
-          ✏️
-        </button>
-
+        >✏️</button>
 
         <button
           type="button"
@@ -775,1483 +519,629 @@ function renderCard(response) {
           data-id="${escapeAttribute(response.id)}"
           title="Excluir"
           aria-label="Excluir resposta"
-        >
-          🗑️
-        </button>
-
+        >🗑️</button>
       </div>
-
     </article>
   `;
-
 }
 
-
 /* ============================================================
-   EVENTOS DOS CARDS
-   ============================================================ */
-
-function bindCardEvents() {
-
-  elements.cards
-    .querySelectorAll("[data-action]")
-    .forEach(button => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          const action =
-            button.dataset.action;
-
-          const id =
-            button.dataset.id;
-
-
-          switch (action) {
-
-            case "copy":
-              openCopyModal(id);
-              break;
-
-            case "edit":
-              openEditModal(id);
-              break;
-
-            case "delete":
-              deleteResponse(id);
-              break;
-
-            case "favorite":
-              toggleFavorite(id);
-              break;
-
-          }
-
-        }
-      );
-
-    });
-
-}
-
-
-/* ============================================================
-   FILTROS
+   FILTROS E ORDENAÇÃO
    ============================================================ */
 
 function getFilteredResponses() {
+  let responses = [...state.data.responses];
 
-  let responses =
-    [...state.data.responses];
-
-
-  /*
-   * Categoria
-   */
-
-  if (
-    state.selectedCategory !== "all"
-  ) {
-
-    responses =
-      responses.filter(
-        response =>
-          response.category ===
-          state.selectedCategory
-      );
-
+  if (state.selectedCategory !== "all") {
+    responses = responses.filter(
+      response => response.category === state.selectedCategory
+    );
   }
-
-
-  /*
-   * Pesquisa
-   */
 
   if (state.search) {
-
-    responses =
-      responses.filter(
-        response => {
-
-          const category =
-            getCategory(
-              response.category
-            );
-
-
-          const searchable = [
-
-            response.title,
-
-            response.text,
-
-            category?.name || ""
-
-          ]
-            .join(" ")
-            .toLowerCase();
-
-
-          return searchable.includes(
-            state.search
-          );
-
-        }
+    responses = responses.filter(response => {
+      const categoryName = getCategory(response.category)?.name || "";
+      const searchable = normalizeSearch(
+        `${response.title} ${response.text} ${categoryName}`
       );
 
+      return searchable.includes(state.search);
+    });
   }
 
+  responses.sort((a, b) => {
+    switch (state.sort) {
+      case "name":
+        return a.title.localeCompare(b.title, "pt-BR", {
+          sensitivity: "base"
+        });
 
-  /*
-   * Ordenação
-   */
+      case "favorite":
+        return (
+          Number(b.favorite) - Number(a.favorite) ||
+          getTimestamp(b.updatedAt) - getTimestamp(a.updatedAt)
+        );
 
-  switch (state.sort) {
-
-    case "name":
-
-      responses.sort(
-        (a, b) =>
-          a.title.localeCompare(
-            b.title,
-            "pt-BR"
-          )
-      );
-
-      break;
-
-
-    case "favorite":
-
-      responses.sort(
-        (a, b) => {
-
-          const favoriteDifference =
-            Number(b.favorite) -
-            Number(a.favorite);
-
-
-          if (favoriteDifference !== 0) {
-            return favoriteDifference;
-          }
-
-
-          return (
-            new Date(b.updatedAt) -
-            new Date(a.updatedAt)
-          );
-
-        }
-      );
-
-      break;
-
-
-    case "recent":
-
-    default:
-
-      responses.sort(
-        (a, b) =>
-          new Date(b.updatedAt) -
-          new Date(a.updatedAt)
-      );
-
-      break;
-
-  }
-
+      case "recent":
+      default:
+        return getTimestamp(b.updatedAt) - getTimestamp(a.updatedAt);
+    }
+  });
 
   return responses;
-
 }
 
+function normalizeSearch(value) {
+  return String(value || "").trim().toLocaleLowerCase("pt-BR");
+}
+
+function getTimestamp(value) {
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
 
 /* ============================================================
-   BUSCAR CATEGORIA
+   BUSCA DE REGISTROS
    ============================================================ */
 
 function getCategory(id) {
-
-  return state.data.categories.find(
-    category =>
-      category.id === id
-  );
-
+  return state.data.categories.find(category => category.id === id);
 }
-
-
-/* ============================================================
-   BUSCAR RESPOSTA
-   ============================================================ */
 
 function getResponse(id) {
-
-  return state.data.responses.find(
-    response =>
-      response.id === id
-  );
-
+  return state.data.responses.find(response => response.id === id);
 }
 
-
 /* ============================================================
-   FAVORITO
+   FAVORITOS
    ============================================================ */
 
 function toggleFavorite(id) {
+  const response = getResponse(id);
 
-  const response =
-    getResponse(id);
+  if (!response) return;
 
-
-  if (!response) {
-    return;
-  }
-
-
-  response.favorite =
-    !response.favorite;
-
-
-  response.updatedAt =
-    new Date().toISOString();
-
+  response.favorite = !response.favorite;
+  response.updatedAt = new Date().toISOString();
 
   saveData();
-
   renderCategories();
-
   renderCards();
-
 
   showToast(
     response.favorite
       ? "★ Adicionado aos favoritos"
       : "☆ Removido dos favoritos"
   );
-
 }
 
-
 /* ============================================================
-   COPIAR RESPOSTA
+   COPIAR RESPOSTAS E VARIÁVEIS
    ============================================================ */
 
-function openCopyModal(id) {
+async function openCopyModal(id) {
+  const response = getResponse(id);
 
-  const response =
-    getResponse(id);
+  if (!response) return;
 
-
-  if (!response) {
-    return;
-  }
-
-
-  const variables =
-    extractVariables(
-      response.text
-    );
-
-
-  /*
-   * Se não houver variáveis,
-   * copia imediatamente.
-   */
+  const variables = extractVariables(response.text);
 
   if (!variables.length) {
-
-    copyText(
-      response.text
-    ).then(() => {
-
-      showToast(
-        "✓ Texto copiado"
-      );
-
-    }).catch(() => {
-
-      showToast(
-        "Não foi possível copiar o texto."
-      );
-
-    });
+    try {
+      await copyText(response.text);
+      showToast("✓ Texto copiado");
+    } catch (error) {
+      console.error("Erro ao copiar:", error);
+      showToast("Não foi possível copiar o texto.");
+    }
 
     return;
-
   }
 
+  state.copyingResponseId = id;
+  renderVariableFields(variables);
 
-  /*
-   * Guarda a resposta atual.
-   */
-
-  state.copyingResponse = {
-    responseId: id,
-    variables
-  };
-
-
-  renderVariableFields(
-    response,
-    variables
-  );
-
-
-  elements.variablesModal.showModal();
-
+  if (!elements.variablesModal.open) {
+    elements.variablesModal.showModal();
+  }
 }
 
-
-/* ============================================================
-   EXTRAIR VARIÁVEIS DO TEXTO
-   ============================================================ */
-
 function extractVariables(text) {
-
-  const matches =
-    text.match(
-      /\{([^{}]+)\}/g
-    ) || [];
-
+  const matches = String(text).match(/\{([^{}]+)\}/g) || [];
 
   return [
     ...new Set(
       matches
-        .map(variable =>
-          variable
-            .slice(1, -1)
-            .trim()
-        )
+        .map(match => match.slice(1, -1).trim())
         .filter(Boolean)
     )
   ];
-
 }
 
+function renderVariableFields(variables) {
+  elements.variablesFields.innerHTML = variables.map((variable, index) => {
+    const label = formatVariableLabel(variable);
+    const fieldId = `variable-${index}`;
 
-/* ============================================================
-   MODAL DE VARIÁVEIS
-   ============================================================ */
+    return `
+      <div class="field variable-field">
+        <label for="${fieldId}">${escapeHtml(label)}</label>
+        <input
+          id="${fieldId}"
+          name="variable-${index}"
+          type="text"
+          autocomplete="off"
+          data-variable="${escapeAttribute(variable)}"
+          placeholder="Digite ${escapeAttribute(label.toLowerCase())}"
+          required
+        >
+      </div>
+    `;
+  }).join("");
 
-function renderVariableFields(
-  response,
-  variables
-) {
-
-  elements.variablesFields.innerHTML =
-    variables
-      .map(variable => {
-
-        const fieldId =
-          `variable-${slugify(variable)}`;
-
-
-        return `
-          <div class="field variable-field">
-
-            <label for="${escapeAttribute(fieldId)}">
-              ${escapeHtml(
-                formatVariableLabel(variable)
-              )}
-            </label>
-
-            <input
-              id="${escapeAttribute(fieldId)}"
-              name="${escapeAttribute(variable)}"
-              type="text"
-              autocomplete="off"
-              data-variable="${escapeAttribute(variable)}"
-              placeholder="Digite ${escapeAttribute(
-                formatVariableLabel(variable)
-              ).toLowerCase()}"
-              required
-            >
-
-          </div>
-        `;
-
-      })
-      .join("");
-
-
-  /*
-   * Se existir apenas uma variável,
-   * coloca foco nela automaticamente.
-   */
-
-  const firstInput =
-    elements.variablesFields.querySelector(
-      "input"
-    );
-
-
-  if (firstInput) {
-
-    setTimeout(
-      () => firstInput.focus(),
-      50
-    );
-
-  }
-
+  elements.variablesFields.querySelector("input")?.focus();
 }
-
-
-/* ============================================================
-   NOME BONITO DA VARIÁVEL
-   ============================================================ */
 
 function formatVariableLabel(variable) {
-
-  return variable
-
-    .replaceAll(
-      "_",
-      " "
-    )
-
-    .replaceAll(
-      "-",
-      " "
-    )
-
-    .replace(
-      /\b\w/g,
-      letter =>
-        letter.toUpperCase()
-    );
-
+  return String(variable)
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase("pt-BR"));
 }
 
+function replaceVariables(text, values) {
+  return String(text).replace(/\{([^{}]+)\}/g, (match, variable) => {
+    const key = variable.trim();
 
-/* ============================================================
-   SUBSTITUIR VARIÁVEIS
-   ============================================================ */
-
-function replaceVariables(
-  text,
-  values
-) {
-
-  return text.replace(
-    /\{([^{}]+)\}/g,
-    (match, variable) => {
-
-      const key =
-        variable.trim();
-
-
-      return Object.prototype.hasOwnProperty.call(
-        values,
-        key
-      )
-        ? values[key]
-        : match;
-
-    }
-  );
-
+    return Object.prototype.hasOwnProperty.call(values, key)
+      ? values[key]
+      : match;
+  });
 }
-
-
-/* ============================================================
-   SUBMIT DO MODAL DE VARIÁVEIS
-   ============================================================ */
 
 async function handleVariablesSubmit(event) {
-
   event.preventDefault();
 
+  if (!state.copyingResponseId) return;
 
-  if (!state.copyingResponse) {
-    return;
-  }
-
-
-  const response =
-    getResponse(
-      state.copyingResponse.responseId
-    );
-
+  const response = getResponse(state.copyingResponseId);
 
   if (!response) {
-
     closeVariablesModal();
-
+    showToast("Esta resposta não está mais disponível.");
     return;
-
   }
 
-
   const values = {};
-
 
   elements.variablesFields
     .querySelectorAll("[data-variable]")
     .forEach(input => {
-
-      values[
-        input.dataset.variable
-      ] =
-        input.value.trim();
-
+      values[input.dataset.variable] = input.value.trim();
     });
 
+  const hasEmptyValue = Object.values(values).some(value => !value);
 
-  /*
-   * Validação
-   */
-
-  const empty =
-    Object.values(values)
-      .some(value => !value);
-
-
-  if (empty) {
-
-    showToast(
-      "Preencha todos os campos."
-    );
-
+  if (hasEmptyValue) {
+    showToast("Preencha todos os campos.");
+    elements.variablesFields.querySelector(":invalid")?.focus();
     return;
-
   }
 
-
-  const finalText =
-    replaceVariables(
-      response.text,
-      values
-    );
-
+  const finalText = replaceVariables(response.text, values);
 
   try {
-
-    await copyText(
-      finalText
-    );
-
-
+    await copyText(finalText);
     closeVariablesModal();
-
-
-    showToast(
-      "✓ Texto personalizado e copiado"
-    );
-
+    showToast("✓ Texto personalizado e copiado");
   } catch (error) {
-
-    console.error(
-      "Erro ao copiar:",
-      error
-    );
-
-
-    showToast(
-      "Não foi possível copiar o texto."
-    );
-
+    console.error("Erro ao copiar:", error);
+    showToast("Não foi possível copiar o texto.");
   }
-
 }
 
-
-/* ============================================================
-   FECHAR MODAL DE VARIÁVEIS
-   ============================================================ */
+function handleVariablesModalClose() {
+  elements.variablesForm.reset();
+  elements.variablesFields.innerHTML = "";
+  state.copyingResponseId = null;
+}
 
 function closeVariablesModal() {
-
-  elements.variablesModal.close();
-
-  elements.variablesForm.reset();
-
-  elements.variablesFields.innerHTML =
-    "";
-
-  state.copyingResponse =
-    null;
-
+  if (elements.variablesModal.open) {
+    elements.variablesModal.close();
+  } else {
+    handleVariablesModalClose();
+  }
 }
 
-
 /* ============================================================
-   CLIPBOARD
+   ÁREA DE TRANSFERÊNCIA
    ============================================================ */
 
 async function copyText(text) {
-
-  /*
-   * Clipboard API
-   */
-
-  if (
-    navigator.clipboard &&
-    window.isSecureContext
-  ) {
-
-    await navigator.clipboard.writeText(
-      text
-    );
-
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(String(text));
     return;
-
   }
 
+  const textarea = document.createElement("textarea");
 
-  /*
-   * Fallback para file://
-   * e navegadores mais antigos.
-   */
+  textarea.value = String(text);
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.pointerEvents = "none";
 
-  const textarea =
-    document.createElement(
-      "textarea"
-    );
-
-
-  textarea.value =
-    text;
-
-
-  textarea.setAttribute(
-    "readonly",
-    ""
-  );
-
-
-  textarea.style.position =
-    "fixed";
-
-  textarea.style.left =
-    "-9999px";
-
-
-  document.body.appendChild(
-    textarea
-  );
-
-
-  textarea.focus();
-
+  document.body.appendChild(textarea);
   textarea.select();
 
+  let success = false;
 
-  const success =
-    document.execCommand(
-      "copy"
-    );
-
-
-  textarea.remove();
-
-
-  if (!success) {
-
-    throw new Error(
-      "Falha ao copiar texto."
-    );
-
+  try {
+    success = document.execCommand("copy");
+  } finally {
+    textarea.remove();
   }
 
+  if (!success) {
+    throw new Error("O navegador não permitiu copiar o texto.");
+  }
 }
 
-
 /* ============================================================
-   NOVA RESPOSTA
+   CRIAR RESPOSTA
    ============================================================ */
 
 function openCreateModal() {
+  state.editingId = null;
 
-  state.editingId =
-    null;
+  elements.modalTitle.textContent = "Nova resposta";
+  elements.responseForm.reset();
 
-
-  elements.modalTitle.textContent =
-    "Nova resposta";
-
-
-  elements.title.value =
-    "";
-
-
-  /*
-   * Se estiver dentro de uma categoria,
-   * já seleciona essa categoria.
-   */
-
-  if (
-    state.selectedCategory !== "all"
-  ) {
-
-    elements.category.value =
-      state.selectedCategory;
-
-  } else {
-
-    elements.category.value =
-      "";
-
-  }
-
-
-  elements.text.value =
-    "";
-
+  elements.category.value =
+    state.selectedCategory !== "all" &&
+    getCategory(state.selectedCategory)
+      ? getCategory(state.selectedCategory).name
+      : "";
 
   updateCategoryOptions();
-
   updateCharacterCount();
 
-
   elements.responseModal.showModal();
-
-
-  setTimeout(
-    () =>
-      elements.title.focus(),
-    50
-  );
-
+  elements.title.focus();
 }
-
 
 /* ============================================================
    EDITAR RESPOSTA
    ============================================================ */
 
 function openEditModal(id) {
+  const response = getResponse(id);
 
-  const response =
-    getResponse(id);
+  if (!response) return;
 
+  state.editingId = id;
 
-  if (!response) {
-    return;
-  }
-
-
-  state.editingId =
-    id;
-
-
-  elements.modalTitle.textContent =
-    "Editar resposta";
-
-
-  elements.title.value =
-    response.title;
-
-
-  /*
-   * Mostra o nome da categoria,
-   * não apenas o ID.
-   */
-
-  const category =
-    getCategory(
-      response.category
-    );
-
-
+  elements.modalTitle.textContent = "Editar resposta";
+  elements.title.value = response.title;
   elements.category.value =
-    category
-      ? category.name
-      : response.category;
-
-
-  elements.text.value =
-    response.text;
-
+    getCategory(response.category)?.name || response.category;
+  elements.text.value = response.text;
 
   updateCategoryOptions();
-
   updateCharacterCount();
 
-
   elements.responseModal.showModal();
-
-
-  setTimeout(
-    () =>
-      elements.title.focus(),
-    50
-  );
-
+  elements.title.focus();
 }
 
+function handleResponseModalClose() {
+  elements.responseForm.reset();
+  state.editingId = null;
+  updateCharacterCount();
+}
+
+function closeResponseModal() {
+  if (elements.responseModal.open) {
+    elements.responseModal.close();
+  } else {
+    handleResponseModalClose();
+  }
+}
 
 /* ============================================================
-   FORMULÁRIO DE RESPOSTA
+   SALVAR RESPOSTA
    ============================================================ */
 
 function handleResponseSubmit(event) {
-
   event.preventDefault();
 
-
-  const title =
-    elements.title.value.trim();
-
-
-  const categoryInput =
-    elements.category.value.trim();
-
-
-  const text =
-    elements.text.value.trim();
-
-
-  /*
-   * Validação básica
-   */
+  const title = elements.title.value.trim();
+  const categoryInput = elements.category.value.trim();
+  const text = elements.text.value.trim();
 
   if (!title) {
-
-    showToast(
-      "Informe o nome da situação."
-    );
-
+    showToast("Informe o nome da situação.");
     elements.title.focus();
-
     return;
-
   }
-
 
   if (!categoryInput) {
-
-    showToast(
-      "Informe uma categoria."
-    );
-
+    showToast("Informe uma categoria.");
     elements.category.focus();
-
     return;
-
   }
-
 
   if (!text) {
-
-    showToast(
-      "Digite o texto padrão."
-    );
-
+    showToast("Digite o texto padrão.");
     elements.text.focus();
-
     return;
-
   }
 
-
-  if (
-    text.length >
-    CONFIG.maxTextLength
-  ) {
-
+  if (text.length > CONFIG.maxTextLength) {
     showToast(
       `O texto pode ter no máximo ${CONFIG.maxTextLength} caracteres.`
     );
-
+    elements.text.focus();
     return;
-
   }
 
-
-  /*
-   * Descobre ou cria categoria.
-   */
-
-  const category =
-    findOrCreateCategory(
-      categoryInput
-    );
-
-
-  const now =
-    new Date().toISOString();
-
-
-  /*
-   * EDIÇÃO
-   */
+  const category = findOrCreateCategory(categoryInput);
+  const now = new Date().toISOString();
 
   if (state.editingId) {
-
-    const response =
-      getResponse(
-        state.editingId
-      );
-
+    const response = getResponse(state.editingId);
 
     if (!response) {
+      showToast("Não foi possível localizar esta resposta.");
+      closeResponseModal();
       return;
     }
 
-
-    response.title =
-      title;
-
-    response.category =
-      category.id;
-
-    response.text =
-      text;
-
-    response.updatedAt =
-      now;
-
+    response.title = title;
+    response.category = category.id;
+    response.text = text;
+    response.updatedAt = now;
 
     saveData();
-
     closeResponseModal();
-
     render();
-
-
-    showToast(
-      "✓ Resposta atualizada"
-    );
-
-
+    showToast("✓ Resposta atualizada");
     return;
-
   }
-
-
-  /*
-   * NOVA RESPOSTA
-   */
 
   state.data.responses.push({
-
-    id:
-      createUniqueId(
-        slugify(title)
-      ),
-
+    id: createUniqueId(slugify(title)),
     title,
-
-    category:
-      category.id,
-
+    category: category.id,
     text,
-
-    favorite:
-      false,
-
-    createdAt:
-      now,
-
-    updatedAt:
-      now
-
+    favorite: false,
+    createdAt: now,
+    updatedAt: now
   });
 
-
   saveData();
-
   closeResponseModal();
-
   render();
-
-
-  showToast(
-    "✓ Resposta criada"
-  );
-
+  showToast("✓ Resposta criada");
 }
 
-
 /* ============================================================
-   ENCONTRAR / CRIAR CATEGORIA
+   CATEGORIAS: LOCALIZAR OU CRIAR
    ============================================================ */
 
-function findOrCreateCategory(
-  categoryInput
-) {
+function findOrCreateCategory(categoryInput) {
+  const normalizedInput = normalizeSearch(categoryInput);
 
-  /*
-   * Primeiro tenta pelo ID.
-   */
+  let category = state.data.categories.find(item =>
+    item.id === categoryInput ||
+    normalizeSearch(item.name) === normalizedInput
+  );
 
-  let category =
-    state.data.categories.find(
-      item =>
-        item.id ===
-        categoryInput
-    );
+  if (category) return category;
 
+  const baseId = slugify(categoryInput) || createId();
+  let id = baseId;
+  let counter = 1;
 
-  if (category) {
-    return category;
+  while (state.data.categories.some(item => item.id === id)) {
+    id = `${baseId}-${counter++}`;
   }
-
-
-  /*
-   * Depois tenta pelo nome.
-   */
-
-  category =
-    state.data.categories.find(
-      item =>
-        item.name.toLowerCase() ===
-        categoryInput.toLowerCase()
-    );
-
-
-  if (category) {
-    return category;
-  }
-
-
-  /*
-   * Cria nova categoria.
-   */
-
-  const baseId =
-    slugify(categoryInput);
-
-
-  let id =
-    baseId || createId();
-
-
-  let counter =
-    1;
-
-
-  while (
-    state.data.categories.some(
-      item =>
-        item.id === id
-    )
-  ) {
-
-    id =
-      `${baseId}-${counter++}`;
-
-  }
-
 
   category = {
-
     id,
-
-    name:
-      categoryInput,
-
-    icon:
-      "📁"
-
+    name: categoryInput,
+    icon: CONFIG.fallbackCategoryIcon
   };
 
-
-  state.data.categories.push(
-    category
-  );
-
+  state.data.categories.push(category);
 
   return category;
-
 }
-
-
-/* ============================================================
-   ATUALIZAR DATAlIST
-   ============================================================ */
 
 function updateCategoryOptions() {
-
-  elements.categoryOptions.innerHTML =
-    state.data.categories
-      .map(category => `
-        <option
-          value="${escapeAttribute(category.name)}"
-        ></option>
-      `)
-      .join("");
-
+  elements.categoryOptions.innerHTML = state.data.categories
+    .map(category => `
+      <option value="${escapeAttribute(category.name)}"></option>
+    `)
+    .join("");
 }
 
-
 /* ============================================================
-   EXCLUIR
+   EXCLUIR RESPOSTA
    ============================================================ */
 
 function deleteResponse(id) {
+  const response = getResponse(id);
 
-  const response =
-    getResponse(id);
+  if (!response) return;
 
-
-  if (!response) {
-    return;
-  }
-
-
-  const confirmed =
-    confirm(
-      `Tem certeza que deseja excluir "${response.title}"?`
-    );
-
-
-  if (!confirmed) {
-    return;
-  }
-
-
-  state.data.responses =
-    state.data.responses.filter(
-      item =>
-        item.id !== id
-    );
-
-
-  saveData();
-
-  render();
-
-
-  showToast(
-    "✓ Resposta excluída"
+  const confirmed = window.confirm(
+    `Tem certeza que deseja excluir "${response.title}"?`
   );
 
+  if (!confirmed) return;
+
+  state.data.responses = state.data.responses.filter(
+    item => item.id !== id
+  );
+
+  saveData();
+  render();
+  showToast("✓ Resposta excluída");
 }
 
-
 /* ============================================================
-   CONTADOR
+   CONTADOR DE CARACTERES
    ============================================================ */
 
 function updateCharacterCount() {
-
-  const length =
-    elements.text.value.length;
-
+  const length = elements.text.value.length;
 
   elements.characterCount.textContent =
     `${length} / ${CONFIG.maxTextLength} caracteres`;
 
+  elements.text.setAttribute(
+    "aria-invalid",
+    String(length > CONFIG.maxTextLength)
+  );
 }
 
-
 /* ============================================================
-   FECHAR MODAL DE RESPOSTA
-   ============================================================ */
-
-function closeResponseModal() {
-
-  elements.responseModal.close();
-
-  elements.responseForm.reset();
-
-  state.editingId =
-    null;
-
-  updateCharacterCount();
-
-}
-
-
-/* ============================================================
-   BACKDROP DOS MODAIS
+   MODAIS
    ============================================================ */
 
 function handleDialogBackdrop(event) {
-
-  if (
-    event.target ===
-    event.currentTarget
-  ) {
-
+  if (event.target === event.currentTarget) {
     event.currentTarget.close();
-
   }
-
 }
 
-
 /* ============================================================
-   EXPORTAR JSON
+   EXPORTAÇÃO JSON
    ============================================================ */
 
 function exportJSON() {
+  if (!state.data) return;
 
-  if (!state.data) {
-    return;
+  try {
+    const json = JSON.stringify(state.data, null, 2);
+    const blob = new Blob([json], {
+      type: "application/json;charset=utf-8"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = CONFIG.exportFileName;
+    link.hidden = true;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    // Dá tempo ao navegador de iniciar o download antes de liberar a URL.
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+    showToast("✓ JSON exportado");
+  } catch (error) {
+    console.error("Erro ao exportar JSON:", error);
+    showToast("Não foi possível exportar os dados.");
   }
-
-
-  const json =
-    JSON.stringify(
-      state.data,
-      null,
-      2
-    );
-
-
-  const blob =
-    new Blob(
-      [json],
-      {
-        type:
-          "application/json;charset=utf-8"
-      }
-    );
-
-
-  const url =
-    URL.createObjectURL(
-      blob
-    );
-
-
-  const link =
-    document.createElement(
-      "a"
-    );
-
-
-  link.href =
-    url;
-
-
-  link.download =
-    "respostas-rapidas.json";
-
-
-  document.body.appendChild(
-    link
-  );
-
-
-  link.click();
-
-  link.remove();
-
-
-  URL.revokeObjectURL(
-    url
-  );
-
-
-  showToast(
-    "✓ JSON exportado"
-  );
-
 }
 
-
 /* ============================================================
-   TOAST
+   NOTIFICAÇÕES
    ============================================================ */
 
 function showToast(message) {
+  elements.toast.textContent = message;
+  elements.toast.classList.add("show");
 
-  elements.toast.textContent =
-    message;
+  window.clearTimeout(state.toastTimer);
 
-
-  elements.toast.classList.add(
-    "show"
-  );
-
-
-  clearTimeout(
-    state.toastTimer
-  );
-
-
-  state.toastTimer =
-    setTimeout(
-      () => {
-
-        elements.toast.classList.remove(
-          "show"
-        );
-
-      },
-      2500
-    );
-
+  state.toastTimer = window.setTimeout(() => {
+    elements.toast.classList.remove("show");
+  }, CONFIG.toastDuration);
 }
 
-
 /* ============================================================
-   ERRO FATAL
+   ERRO DE CARREGAMENTO
    ============================================================ */
 
 function showFatalError(error) {
+  const message = error?.message || "Erro desconhecido.";
 
-  const message =
-    error?.message ||
-    "Erro desconhecido.";
-
+  if (!elements.cards) {
+    console.error(message);
+    return;
+  }
 
   elements.cards.innerHTML = `
     <div class="empty">
-
-      <div class="empty-icon">
-        ⚠️
-      </div>
-
-      <h3>
-        Não foi possível carregar as respostas
-      </h3>
-
-      <p>
-        ${escapeHtml(message)}
-      </p>
-
+      <div class="empty-icon" aria-hidden="true">⚠️</div>
+      <h3>Não foi possível carregar as respostas</h3>
+      <p>${escapeHtml(message)}</p>
       <p>
         Verifique se o arquivo
         <strong>data/respostas.json</strong>
         está no local correto.
       </p>
-
     </div>
   `;
-
 }
 
-
 /* ============================================================
-   SLUG
+   UTILITÁRIOS
    ============================================================ */
 
-function slugify(text) {
-
-  return String(text)
-
+function slugify(value) {
+  return String(value)
     .normalize("NFD")
-
-    .replace(
-      /[\u0300-\u036f]/g,
-      ""
-    )
-
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-
-    .replace(
-      /[^a-z0-9]+/g,
-      "-"
-    )
-
-    .replace(
-      /^-+|-+$/g,
-      "");
-
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
-
-
-/* ============================================================
-   ID
-   ============================================================ */
 
 function createId() {
-
-  if (
-    typeof crypto !== "undefined" &&
-    crypto.randomUUID
-  ) {
-
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
-
   }
-
 
   return (
     Date.now().toString(36) +
-    Math.random()
-      .toString(36)
-      .substring(2)
+    Math.random().toString(36).slice(2)
   );
-
 }
-
-
-/* ============================================================
-   ID ÚNICO
-   ============================================================ */
 
 function createUniqueId(base) {
+  const cleanBase = base || "resposta";
+  let id = cleanBase;
+  let counter = 1;
 
-  const cleanBase =
-    base ||
-    "resposta";
-
-
-  let id =
-    cleanBase;
-
-
-  let counter =
-    1;
-
-
-  while (
-    state.data.responses.some(
-      response =>
-        response.id === id
-    )
-  ) {
-
-    id =
-      `${cleanBase}-${counter++}`;
-
+  while (state.data.responses.some(response => response.id === id)) {
+    id = `${cleanBase}-${counter++}`;
   }
 
-
   return id;
-
 }
 
-
 /* ============================================================
-   SEGURANÇA HTML
+   SEGURANÇA: ESCAPE DE HTML
    ============================================================ */
 
 function escapeHtml(value) {
-
   return String(value)
-
-    .replaceAll(
-      "&",
-      "&amp;"
-    )
-
-    .replaceAll(
-      "<",
-      "&lt;"
-    )
-
-    .replaceAll(
-      ">",
-      "&gt;"
-    )
-
-    .replaceAll(
-      '"',
-      "&quot;"
-    )
-
-    .replaceAll(
-      "'",
-      "&#039;"
-    );
-
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-
 function escapeAttribute(value) {
-
-  return escapeHtml(
-    value
-  );
-
+  return escapeHtml(value);
 }
